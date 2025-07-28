@@ -1,94 +1,61 @@
-import { useState } from "react";
 import HabitCard from "@/components/HabitCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Users2, Target, Calendar, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-// Mock data - will be replaced with Supabase data
-const mockHabits = [
-  {
-    id: "1",
-    name: "Drink Water",
-    description: "Stay hydrated throughout the day",
-    category: "health" as const,
-    habitType: "daily" as const,
-    targetCount: 8,
-    members: [
-      { id: "current-user-id", displayName: "You", completions: 3, targetCount: 8 },
-      { id: "user-2", displayName: "Sarah", completions: 6, targetCount: 8 },
-      { id: "user-3", displayName: "Mike", completions: 8, targetCount: 8 },
-    ],
-    isJoined: true,
-    isCreator: true,
-  },
-  {
-    id: "2",
-    name: "Morning Meditation",
-    description: "Start the day with mindfulness",
-    category: "mind" as const,
-    habitType: "daily" as const,
-    targetCount: 1,
-    members: [
-      { id: "current-user-id", displayName: "You", completions: 1, targetCount: 1 },
-      { id: "user-2", displayName: "Sarah", completions: 0, targetCount: 1 },
-    ],
-    isJoined: true,
-    isCreator: false,
-  },
-  {
-    id: "3",
-    name: "Read Books",
-    description: "Read for at least 30 minutes daily",
-    category: "mind" as const,
-    habitType: "daily" as const,
-    targetCount: 1,
-    members: [
-      { id: "user-2", displayName: "Sarah", completions: 1, targetCount: 1 },
-      { id: "user-3", displayName: "Mike", completions: 0, targetCount: 1 },
-    ],
-    isJoined: false,
-    isCreator: false,
-  },
-];
+import { useHabits } from "@/hooks/useHabits";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Home = () => {
-  const [habits] = useState(mockHabits);
+  const { habits, loading, joinHabit, leaveHabit, completeHabit } = useHabits();
   const { toast } = useToast();
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUserId(user?.id || null);
+    };
+    getCurrentUser();
+  }, []);
 
   const handleJoinHabit = (habitId: string) => {
-    toast({
-      title: "Feature Coming Soon",
-      description: "Connect to Supabase to enable habit joining",
-    });
+    joinHabit(habitId);
   };
 
   const handleLeaveHabit = (habitId: string) => {
-    toast({
-      title: "Feature Coming Soon", 
-      description: "Connect to Supabase to enable habit management",
-    });
+    leaveHabit(habitId);
   };
 
   const handleComplete = (habitId: string, userId: string) => {
-    toast({
-      title: "Progress Updated! 🎉",
-      description: "Your habit completion has been recorded",
-    });
+    completeHabit(habitId);
   };
 
   const handleCreateHabit = () => {
     toast({
       title: "Feature Coming Soon",
-      description: "Connect to Supabase to enable habit creation",
+      description: "Habit creation dialog will be added next",
     });
   };
 
   const totalHabits = habits.length;
   const joinedHabits = habits.filter(h => h.isJoined).length;
-  const completedToday = habits.filter(h => 
-    h.isJoined && h.members.find(m => m.id === "current-user-id")?.completions! >= h.targetCount
-  ).length;
+  const completedToday = habits.filter(h => {
+    if (!h.isJoined || !currentUserId) return false;
+    const userMember = h.members.find(m => m.id === currentUserId);
+    return userMember && userMember.completions >= h.targetCount;
+  }).length;
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <div className="flex items-center justify-center min-h-96">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">

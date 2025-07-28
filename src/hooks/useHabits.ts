@@ -23,7 +23,7 @@ export interface Habit {
   roomId: string;
 }
 
-export const useHabits = () => {
+export const useHabits = (selectedDate?: Date) => {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -82,13 +82,13 @@ export const useHabits = () => {
             .select('user_id, display_name, avatar_url')
             .in('user_id', memberIds) : { data: [] };
 
-          // Get today's completions for this habit
-          const today = new Date().toISOString().split('T')[0];
+          // Get completions for the selected date (default to today)
+          const targetDate = selectedDate ? selectedDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
           const { data: completions } = await supabase
             .from('habit_completions')
             .select('user_id')
             .eq('habit_id', habit.id)
-            .eq('completion_date', today);
+            .eq('completion_date', targetDate);
 
           const completionCounts = completions?.reduce((acc, comp) => {
             acc[comp.user_id] = (acc[comp.user_id] || 0) + 1;
@@ -249,7 +249,7 @@ export const useHabits = () => {
     return () => {
       supabase.removeChannel(habitsChannel);
     };
-  }, []);
+  }, [selectedDate]);
 
   return {
     habits,

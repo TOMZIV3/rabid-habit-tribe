@@ -38,6 +38,7 @@ interface HabitCardProps {
   members: HabitMember[];
   isJoined: boolean;
   isCreator: boolean;
+  isToday?: boolean;
   onJoinHabit: (habitId: string) => void;
   onLeaveHabit: (habitId: string) => void;
   onComplete: (habitId: string) => void;
@@ -66,13 +67,15 @@ const ProgressCircle = ({
   target, 
   size = 60, 
   member, 
-  onComplete 
+  onComplete,
+  isToday = true
 }: { 
   current: number; 
   target: number; 
   size?: number; 
   member: HabitMember;
   onComplete: () => void;
+  isToday?: boolean;
 }) => {
   const percentage = Math.min((current / target) * 100, 100);
   const isComplete = current >= target;
@@ -115,8 +118,10 @@ const ProgressCircle = ({
           variant="ghost"
           size="icon"
           onClick={onComplete}
+          disabled={!isToday}
           className={cn(
             "absolute inset-0 rounded-full transition-all duration-300 hover:scale-105 bg-card/80 backdrop-blur-sm border-2",
+            !isToday ? "opacity-50 cursor-not-allowed" : "",
             isComplete 
               ? "border-success text-success hover:bg-success/10" 
               : "border-primary/20 text-foreground hover:bg-primary/10 hover:border-primary/40"
@@ -150,6 +155,7 @@ const HabitCard = ({
   members,
   isJoined,
   isCreator,
+  isToday = true,
   onJoinHabit,
   onLeaveHabit,
   onComplete,
@@ -235,6 +241,7 @@ const HabitCard = ({
                   target={targetCount}
                   member={currentUser}
                   onComplete={() => onComplete(id)}
+                  isToday={isToday}
                 />
               )}
               {otherMembers.map((member) => (
@@ -244,6 +251,7 @@ const HabitCard = ({
                     target={targetCount}
                     member={member}
                     onComplete={() => onComplete(id)}
+                    isToday={isToday}
                   />
                   {currentUserId && currentUserId !== member.id && (
                     <NudgeButton

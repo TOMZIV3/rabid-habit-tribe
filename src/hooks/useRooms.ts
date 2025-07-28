@@ -198,8 +198,12 @@ export const useRooms = () => {
       }
 
       // Check member limit (max 3)
-      const { data: memberCount } = await supabase
-        .rpc('get_room_member_count', { room_uuid: room.id });
+      const { data: existingMembers } = await supabase
+        .from('room_members')
+        .select('id')
+        .eq('room_id', room.id);
+      
+      const memberCount = existingMembers?.length || 0;
 
       if (memberCount >= 3) {
         toast({
@@ -307,5 +311,10 @@ export const useRooms = () => {
 };
 
 const generateInviteCode = (): string => {
-  return Math.random().toString(36).substring(2, 8).toUpperCase();
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // Exclude confusing chars (0, O, 1, I, l)
+  let result = '';
+  for (let i = 0; i < 6; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
 };

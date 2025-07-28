@@ -10,18 +10,20 @@ import { Plus, Users2, Target, Calendar, Zap, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useHabits } from "@/hooks/useHabits";
 import { useRooms } from "@/hooks/useRooms";
+import { useCompletionData } from "@/hooks/useCompletionData";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
+import { format, isToday } from "date-fns";
 
 const Home = () => {
-  const { habits, loading, joinHabit, leaveHabit, completeHabit, refetch } = useHabits();
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const { habits, loading, joinHabit, leaveHabit, completeHabit, refetch } = useHabits(selectedDate);
   const { currentRoom } = useRooms();
+  const { completionData } = useCompletionData();
   const { toast } = useToast();
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showInviteDialog, setShowInviteDialog] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date());
 
   useEffect(() => {
     const getCurrentUser = async () => {
@@ -40,7 +42,16 @@ const Home = () => {
   };
 
   const handleComplete = (habitId: string) => {
-    completeHabit(habitId);
+    // Only allow completion for today
+    if (isToday(selectedDate)) {
+      completeHabit(habitId);
+    } else {
+      toast({
+        title: "Cannot complete",
+        description: "You can only complete habits for today",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleCreateHabit = () => {
@@ -73,11 +84,6 @@ const Home = () => {
     : 0;
 
   const totalRoomMembers = currentRoom?.memberCount || 0;
-
-  // Mock completion data for day selector (replace with real data later)
-  const completionData = {
-    [format(new Date(), 'yyyy-MM-dd')]: collectiveProgress,
-  };
 
   if (loading) {
     return (
@@ -125,16 +131,6 @@ const Home = () => {
           selectedDate={selectedDate}
           onDateSelect={setSelectedDate}
           completionData={completionData}
-        />
-      )}
-
-      {/* Collective Progress */}
-      {currentRoom && joinedHabits > 0 && (
-        <CollectiveProgressCircle
-          totalProgress={collectiveProgress}
-          memberCount={totalRoomMembers}
-          completedHabits={completedToday}
-          totalHabits={joinedHabits}
         />
       )}
 
@@ -197,10 +193,22 @@ const Home = () => {
         </Card>
       </div>
 
+      {/* Collective Progress */}
+      {currentRoom && joinedHabits > 0 && (
+        <CollectiveProgressCircle
+          totalProgress={collectiveProgress}
+          memberCount={totalRoomMembers}
+          completedHabits={completedToday}
+          totalHabits={joinedHabits}
+        />
+      )}
+
       {/* Habits Grid */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-foreground">Your Habits</h2>
+          <h2 className="text-xl font-semibold text-foreground">
+            Your Habits {!isToday(selectedDate) && `for ${format(selectedDate, 'MMM d')}`}
+          </h2>
           <p className="text-sm text-muted-foreground">
             {joinedHabits} of {totalHabits} habits joined
           </p>
@@ -214,6 +222,7 @@ const Home = () => {
               onJoinHabit={handleJoinHabit}
               onLeaveHabit={handleLeaveHabit}
               onComplete={handleComplete}
+              isToday={isToday(selectedDate)}
             />
           ))}
         </div>

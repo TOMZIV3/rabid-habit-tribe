@@ -3,10 +3,73 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Session, User } from "@supabase/supabase-js";
+import { useIsMobile } from "@/hooks/use-mobile";
+import AuthForm from "@/components/AuthForm";
+import Home from "./pages/Home";
+import History from "./pages/History";
+import Profile from "./pages/Profile";
+import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
+import BottomNavigation from "@/components/BottomNavigation";
+import FloatingActionButton from "@/components/FloatingActionButton";
 
 const queryClient = new QueryClient();
+
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setLoading(false);
+      }
+    );
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <AuthForm />;
+  }
+
+  return <>{children}</>;
+};
+
+const AppLayout = ({ children }: { children: React.ReactNode }) => {
+  const isMobile = useIsMobile();
+
+  return (
+    <div className="min-h-screen bg-background">
+      <main className={isMobile ? "pb-20" : ""}>
+        {children}
+      </main>
+      {isMobile && (
+        <>
+          <BottomNavigation />
+          <FloatingActionButton />
+        </>
+      )}
+    </div>
+  );
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -15,8 +78,34 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="/" element={
+            <ProtectedRoute>
+              <AppLayout>
+                <Home />
+              </AppLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/history" element={
+            <ProtectedRoute>
+              <AppLayout>
+                <History />
+              </AppLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/notifications" element={
+            <ProtectedRoute>
+              <AppLayout>
+                <Notifications />
+              </AppLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <AppLayout>
+                <Profile />
+              </AppLayout>
+            </ProtectedRoute>
+          } />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

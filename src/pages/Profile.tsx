@@ -137,8 +137,9 @@ const Profile = () => {
                     <Label htmlFor="display-name">Display Name</Label>
                     <Input
                       id="display-name"
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="Enter your display name"
                     />
                   </div>
                   <Button onClick={handleSaveProfile} variant="default">

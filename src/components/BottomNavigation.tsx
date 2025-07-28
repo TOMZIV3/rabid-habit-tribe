@@ -2,18 +2,18 @@ import { NavLink, useLocation } from "react-router-dom";
 import { Home, History, User, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { useNotifications } from "@/hooks/useNotifications";
 
-interface BottomNavigationProps {
-  unreadNotifications?: number;
-}
+interface BottomNavigationProps {}
 
-const BottomNavigation = ({ unreadNotifications = 0 }: BottomNavigationProps) => {
+const BottomNavigation = ({}: BottomNavigationProps) => {
   const location = useLocation();
+  const { unreadCount } = useNotifications();
 
   const navItems = [
     { to: "/", icon: Home, label: "Home" },
     { to: "/history", icon: History, label: "History" },
-    { to: "/notifications", icon: Bell, label: "Notifications", badge: unreadNotifications },
+    { to: "/notifications", icon: Bell, label: "Notifications", badge: unreadCount },
     { to: "/profile", icon: User, label: "Profile" },
   ];
 

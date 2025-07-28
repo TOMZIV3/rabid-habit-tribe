@@ -33,7 +33,7 @@ const Home = () => {
     leaveHabit(habitId);
   };
 
-  const handleComplete = (habitId: string, userId: string) => {
+  const handleComplete = (habitId: string) => {
     completeHabit(habitId);
   };
 

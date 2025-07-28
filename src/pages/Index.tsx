@@ -73,7 +73,7 @@ const Index = () => {
       {/* Mobile UI */}
       {isMobile && (
         <>
-          <BottomNavigation unreadNotifications={2} />
+          <BottomNavigation />
           <FloatingActionButton />
         </>
       )}

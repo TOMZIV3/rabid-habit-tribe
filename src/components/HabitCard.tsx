@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import NudgeButton from "./NudgeButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,7 +40,7 @@ interface HabitCardProps {
   isCreator: boolean;
   onJoinHabit: (habitId: string) => void;
   onLeaveHabit: (habitId: string) => void;
-  onComplete: (habitId: string, userId: string) => void;
+  onComplete: (habitId: string) => void;
 }
 
 const categoryConfig = {
@@ -128,8 +130,19 @@ const HabitCard = ({
   const CategoryIcon = categoryConfig[category].icon;
   const HabitIcon = getHabitIcon(name);
   
-  const currentUser = members.find(member => member.id === "current-user-id"); // TODO: Replace with actual user ID
-  const otherMembers = members.filter(member => member.id !== "current-user-id");
+  // Get current user from auth
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUserId(user?.id || null);
+    };
+    getCurrentUser();
+  }, []);
+
+  const currentUser = members.find(member => member.id === currentUserId);
+  const otherMembers = members.filter(member => member.id !== currentUserId);
 
   return (
     <Card className="bg-gradient-card border-border hover:border-primary/30 transition-all duration-300 animate-fade-in">
@@ -193,17 +206,28 @@ const HabitCard = ({
                   current={currentUser.completions}
                   target={targetCount}
                   member={currentUser}
-                  onComplete={() => onComplete(id, currentUser.id)}
+                  onComplete={() => onComplete(id)}
                 />
               )}
               {otherMembers.map((member) => (
-                <ProgressCircle
-                  key={member.id}
-                  current={member.completions}
-                  target={targetCount}
-                  member={member}
-                  onComplete={() => onComplete(id, member.id)}
-                />
+                <div key={member.id} className="space-y-2">
+                  <ProgressCircle
+                    current={member.completions}
+                    target={targetCount}
+                    member={member}
+                    onComplete={() => onComplete(id)}
+                  />
+                  {currentUserId && currentUserId !== member.id && (
+                    <NudgeButton
+                      toUserId={member.id}
+                      habitId={id}
+                      habitName={name}
+                      userName={member.displayName}
+                      className="w-full"
+                      size="sm"
+                    />
+                  )}
+                </div>
               ))}
             </div>
             

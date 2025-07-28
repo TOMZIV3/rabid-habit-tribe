@@ -112,25 +112,32 @@ const Profile = () => {
 
   const handleSignOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut({
+        scope: 'local'
+      });
+      
       if (error) {
+        console.error('Sign out error:', error);
         toast({
           title: "Sign Out Failed",
           description: error.message,
           variant: "destructive",
         });
       } else {
+        // Clear any local storage if needed
+        localStorage.removeItem('supabase.auth.token');
         toast({
           title: "Signed Out",
           description: "You have been successfully signed out",
         });
+        // Force page reload to clear any cached state
+        window.location.reload();
       }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred",
-        variant: "destructive",
-      });
+    } catch (error: any) {
+      console.error('Unexpected sign out error:', error);
+      // Force sign out even if there's an error
+      localStorage.removeItem('supabase.auth.token');
+      window.location.reload();
     }
   };
 

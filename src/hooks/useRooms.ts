@@ -115,21 +115,38 @@ export const useRooms = () => {
 
   const createRoom = async (name: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) {
+        console.error('User auth error:', userError);
+        throw userError;
+      }
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
 
-      // Create room
+      console.log('Creating room for user:', user.id);
+
+      // Generate a unique invite code
+      const inviteCode = generateInviteCode();
+      console.log('Generated invite code:', inviteCode);
+
+      // Create room with explicit error handling
       const { data: room, error: roomError } = await supabase
         .from('rooms')
         .insert({
           name: name.trim(),
           created_by: user.id,
-          invite_code: generateInviteCode()
+          invite_code: inviteCode
         })
         .select()
         .single();
 
-      if (roomError) throw roomError;
+      if (roomError) {
+        console.error('Room creation error:', roomError);
+        throw roomError;
+      }
+
+      console.log('Room created successfully:', room);
 
       // Join the room as creator
       const { error: memberError } = await supabase
@@ -139,20 +156,26 @@ export const useRooms = () => {
           user_id: user.id
         });
 
-      if (memberError) throw memberError;
+      if (memberError) {
+        console.error('Member insertion error:', memberError);
+        throw memberError;
+      }
+
+      console.log('User added to room as creator');
 
       toast({
         title: "Room Created! 🎉",
         description: `${name} is ready for habit tracking`
       });
 
+      // Refetch rooms to update state
       await fetchRooms();
       return room;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating room:', error);
       toast({
         title: "Error",
-        description: "Failed to create room",
+        description: error.message || "Failed to create room",
         variant: "destructive"
       });
       return null;
@@ -171,10 +194,13 @@ export const useRooms = () => {
       console.log('Debug room lookup result:', debugResult);
 
       // Find room by invite code with better error handling
+      const cleanCode = inviteCode.trim().toUpperCase();
+      console.log('Searching for room with invite code:', cleanCode);
+      
       const { data: room, error: roomError } = await supabase
         .from('rooms')
         .select('id, name')
-        .eq('invite_code', inviteCode.trim().toUpperCase())
+        .ilike('invite_code', cleanCode)
         .maybeSingle();
 
       if (roomError) {

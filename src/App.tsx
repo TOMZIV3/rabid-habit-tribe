@@ -58,15 +58,11 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="min-h-screen bg-background">
-      <main className={isMobile ? "pb-20" : ""}>
+      <main className="pb-20">
         {children}
       </main>
-      {isMobile && (
-        <>
-          <BottomNavigation />
-          <FloatingActionButton />
-        </>
-      )}
+      <BottomNavigation />
+      {isMobile && <FloatingActionButton />}
     </div>
   );
 };

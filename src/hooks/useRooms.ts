@@ -164,17 +164,33 @@ export const useRooms = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return false;
 
-      // Find room by invite code
+      // Find room by invite code using the debug function first to verify
+      const { data: debugResult } = await supabase
+        .rpc('debug_room_lookup', { code: inviteCode.trim().toUpperCase() });
+
+      console.log('Debug room lookup result:', debugResult);
+
+      // Find room by invite code with better error handling
       const { data: room, error: roomError } = await supabase
         .from('rooms')
         .select('id, name')
-        .eq('invite_code', inviteCode.toUpperCase())
-        .single();
+        .eq('invite_code', inviteCode.trim().toUpperCase())
+        .maybeSingle();
 
-      if (roomError || !room) {
+      if (roomError) {
+        console.error('Room lookup error:', roomError);
+        toast({
+          title: "Database Error",
+          description: `Error looking up room: ${roomError.message}`,
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      if (!room) {
         toast({
           title: "Invalid Code",
-          description: "Room not found with that invite code",
+          description: `Room not found with invite code: ${inviteCode.trim().toUpperCase()}`,
           variant: "destructive"
         });
         return false;

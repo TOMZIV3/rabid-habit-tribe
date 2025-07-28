@@ -7,17 +7,33 @@ import Profile from "./Profile";
 import Notifications from "./Notifications";
 import BottomNavigation from "@/components/BottomNavigation";
 import { useLocation } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Session, User } from "@supabase/supabase-js";
 
 const Index = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [currentPage, setCurrentPage] = useState("home");
   const isMobile = useIsMobile();
   const location = useLocation();
 
-  // Mock authentication - will be replaced with Supabase
+  // Setup authentication state management
   useEffect(() => {
-    // For demo purposes, show auth form initially
-    // setIsAuthenticated(true);
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+      }
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   // Handle navigation based on URL path
@@ -29,7 +45,7 @@ const Index = () => {
     else if (path === "/profile") setCurrentPage("profile");
   }, [location.pathname]);
 
-  if (!isAuthenticated) {
+  if (!session || !user) {
     return <AuthForm />;
   }
 

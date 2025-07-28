@@ -20,6 +20,7 @@ import {
   Award
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
@@ -58,11 +59,28 @@ const Profile = () => {
     setIsEditing(false);
   };
 
-  const handleSignOut = () => {
-    toast({
-      title: "Feature Coming Soon",
-      description: "Connect to Supabase to enable authentication",
-    });
+  const handleSignOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        toast({
+          title: "Sign Out Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Signed Out",
+          description: "You have been successfully signed out",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleNotificationChange = (key: keyof typeof notifications) => {

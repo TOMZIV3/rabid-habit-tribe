@@ -76,30 +76,58 @@ const ProgressCircle = ({
 }) => {
   const percentage = Math.min((current / target) * 100, 100);
   const isComplete = current >= target;
+  const circumference = 2 * Math.PI * (size / 2 - 4);
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
   
   return (
     <div className="flex flex-col items-center space-y-2">
-      <Button
-        variant="progress"
-        size="progress"
-        onClick={onComplete}
-        className={cn(
-          "relative transition-all duration-300 hover:scale-105",
-          isComplete && "bg-success hover:bg-success/90 text-white"
-        )}
-        style={{ width: size, height: size }}
-      >
-        <div className="text-xs font-bold">
-          {current}/{target}
-        </div>
-        <div 
-          className="absolute inset-0 rounded-full border-4 border-transparent"
-          style={{
-            background: `conic-gradient(from 0deg, hsl(var(--primary)) ${percentage}%, transparent ${percentage}%)`,
-            borderRadius: '50%',
-          }}
-        />
-      </Button>
+      <div className="relative">
+        <svg
+          width={size}
+          height={size}
+          className="transform -rotate-90"
+        >
+          {/* Background circle */}
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={size / 2 - 4}
+            stroke="hsl(var(--muted))"
+            strokeWidth="3"
+            fill="transparent"
+            className="opacity-20"
+          />
+          {/* Progress circle */}
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={size / 2 - 4}
+            stroke={isComplete ? "hsl(var(--success))" : "hsl(var(--primary))"}
+            strokeWidth="3"
+            fill="transparent"
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+            className="transition-all duration-500 ease-in-out"
+            strokeLinecap="round"
+          />
+        </svg>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onComplete}
+          className={cn(
+            "absolute inset-0 rounded-full transition-all duration-300 hover:scale-105 bg-card/80 backdrop-blur-sm border-2",
+            isComplete 
+              ? "border-success text-success hover:bg-success/10" 
+              : "border-primary/20 text-foreground hover:bg-primary/10 hover:border-primary/40"
+          )}
+          style={{ width: size - 8, height: size - 8, top: 4, left: 4 }}
+        >
+          <div className="text-xs font-bold">
+            {current}/{target}
+          </div>
+        </Button>
+      </div>
       <div className="text-center">
         <p className="text-xs font-medium text-foreground">{member.displayName}</p>
         {isComplete && (

@@ -1,14 +1,18 @@
 import HabitCard from "@/components/HabitCard";
 import RoomSelector from "@/components/RoomSelector";
 import CreateHabitDialog from "@/components/CreateHabitDialog";
+import CollectiveProgressCircle from "@/components/CollectiveProgressCircle";
+import DaySelector from "@/components/DaySelector";
+import InviteDialog from "@/components/InviteDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Users2, Target, Calendar, Zap } from "lucide-react";
+import { Plus, Users2, Target, Calendar, Zap, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useHabits } from "@/hooks/useHabits";
 import { useRooms } from "@/hooks/useRooms";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 
 const Home = () => {
   const { habits, loading, joinHabit, leaveHabit, completeHabit, refetch } = useHabits();
@@ -16,6 +20,8 @@ const Home = () => {
   const { toast } = useToast();
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showInviteDialog, setShowInviteDialog] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
   useEffect(() => {
     const getCurrentUser = async () => {
@@ -49,6 +55,30 @@ const Home = () => {
     return userMember && userMember.completions >= h.targetCount;
   }).length;
 
+  // Calculate collective progress
+  const totalMemberCompletions = habits.reduce((acc, habit) => {
+    if (!habit.isJoined) return acc;
+    return acc + habit.members.reduce((memberAcc, member) => {
+      return memberAcc + Math.min(member.completions, habit.targetCount);
+    }, 0);
+  }, 0);
+
+  const totalPossibleCompletions = habits.reduce((acc, habit) => {
+    if (!habit.isJoined) return acc;
+    return acc + (habit.members.length * habit.targetCount);
+  }, 0);
+
+  const collectiveProgress = totalPossibleCompletions > 0 
+    ? (totalMemberCompletions / totalPossibleCompletions) * 100 
+    : 0;
+
+  const totalRoomMembers = currentRoom?.memberCount || 0;
+
+  // Mock completion data for day selector (replace with real data later)
+  const completionData = {
+    [format(new Date(), 'yyyy-MM-dd')]: collectiveProgress,
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-6">
@@ -71,12 +101,42 @@ const Home = () => {
         </div>
         <div className="flex items-center gap-3">
           <RoomSelector className="min-w-[200px]" />
+          {currentRoom && (
+            <Button 
+              onClick={() => setShowInviteDialog(true)} 
+              variant="outline" 
+              size="lg"
+              disabled={totalRoomMembers >= 3}
+            >
+              <UserPlus className="w-5 h-5 mr-2" />
+              Invite Friends
+            </Button>
+          )}
           <Button onClick={handleCreateHabit} variant="hero" size="lg" disabled={!currentRoom}>
             <Plus className="w-5 h-5 mr-2" />
             Create Habit
           </Button>
         </div>
       </div>
+
+      {/* Day Selector */}
+      {currentRoom && (
+        <DaySelector
+          selectedDate={selectedDate}
+          onDateSelect={setSelectedDate}
+          completionData={completionData}
+        />
+      )}
+
+      {/* Collective Progress */}
+      {currentRoom && joinedHabits > 0 && (
+        <CollectiveProgressCircle
+          totalProgress={collectiveProgress}
+          memberCount={totalRoomMembers}
+          completedHabits={completedToday}
+          totalHabits={joinedHabits}
+        />
+      )}
 
       {/* Stats Overview */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -193,6 +253,16 @@ const Home = () => {
         onOpenChange={setShowCreateDialog}
         onSuccess={refetch}
       />
+      
+      {currentRoom && (
+        <InviteDialog
+          open={showInviteDialog}
+          onOpenChange={setShowInviteDialog}
+          roomName={currentRoom.name}
+          inviteCode={currentRoom.inviteCode || ""}
+          memberCount={totalRoomMembers}
+        />
+      )}
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,21 +17,26 @@ import {
   Crown,
   Calendar,
   Target,
-  Award
+  Award,
+  Camera,
+  Upload
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useProfile } from "@/hooks/useProfile";
 
 const Profile = () => {
+  const { profile, loading, updateProfile } = useProfile();
   const [isEditing, setIsEditing] = useState(false);
-  const [displayName, setDisplayName] = useState("John Doe");
-  const [email] = useState("john.doe@example.com");
+  const [displayName, setDisplayName] = useState("");
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [notifications, setNotifications] = useState({
     nudges: true,
     dailyReminders: true,
     weeklyReports: false,
   });
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Mock user data
   const userStats = {
@@ -51,12 +56,58 @@ const Profile = () => {
     { id: "3", name: "Mindfulness Group", role: "member", members: 5 },
   ];
 
-  const handleSaveProfile = () => {
-    toast({
-      title: "Feature Coming Soon",
-      description: "Connect to Supabase to enable profile updates",
-    });
-    setIsEditing(false);
+  // Set initial display name when profile loads
+  useState(() => {
+    if (profile?.display_name) {
+      setDisplayName(profile.display_name);
+    }
+  });
+
+  const handleAvatarSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setAvatarFile(file);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!profile) return;
+
+    try {
+      let avatarUrl = profile.avatar_url;
+
+      // Upload avatar if a new file was selected
+      if (avatarFile) {
+        const fileExt = avatarFile.name.split('.').pop();
+        const fileName = `${profile.user_id}_${Date.now()}.${fileExt}`;
+        
+        // For now, we'll just show a success message
+        // TODO: Implement actual file upload to Supabase Storage
+        toast({
+          title: "Avatar upload coming soon",
+          description: "Avatar upload will be implemented with Supabase Storage",
+        });
+      }
+
+      // Update profile
+      await updateProfile({
+        display_name: displayName,
+        avatar_url: avatarUrl,
+      });
+
+      toast({
+        title: "Profile updated",
+        description: "Your profile has been successfully updated",
+      });
+      setIsEditing(false);
+      setAvatarFile(null);
+    } catch (error) {
+      toast({
+        title: "Error updating profile",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSignOut = async () => {
@@ -91,6 +142,19 @@ const Profile = () => {
     });
   };
 
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <div className="flex items-center justify-center min-h-96">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
+  }
+
+  const currentDisplayName = profile?.display_name || "User";
+  const currentEmail = profile?.user_id || "user@example.com"; // Placeholder
+
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
       {/* Header */}
@@ -124,12 +188,34 @@ const Profile = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center space-x-4">
-            <Avatar className="w-20 h-20">
-              <AvatarImage src="" alt={displayName} />
-              <AvatarFallback className="text-xl bg-primary/10 text-primary">
-                {displayName.split(' ').map(n => n[0]).join('').toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+            <div className="relative">
+              <Avatar className="w-20 h-20">
+                <AvatarImage 
+                  src={avatarFile ? URL.createObjectURL(avatarFile) : profile?.avatar_url || ""} 
+                  alt={currentDisplayName} 
+                />
+                <AvatarFallback className="text-xl bg-primary/10 text-primary">
+                  {currentDisplayName.split(' ').map(n => n[0]).join('').toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              {isEditing && (
+                <Button
+                  size="icon"
+                  variant="secondary"
+                  className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Camera className="w-4 h-4" />
+                </Button>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarSelect}
+                className="hidden"
+              />
+            </div>
             <div className="flex-1">
               {isEditing ? (
                 <div className="space-y-3">
@@ -137,9 +223,9 @@ const Profile = () => {
                     <Label htmlFor="display-name">Display Name</Label>
                     <Input
                       id="display-name"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="Enter your display name"
+                      value={displayName || currentDisplayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      placeholder="Enter your display name"
                     />
                   </div>
                   <Button onClick={handleSaveProfile} variant="default">
@@ -148,8 +234,8 @@ const Profile = () => {
                 </div>
               ) : (
                 <div>
-                  <h2 className="text-2xl font-bold text-foreground">{displayName}</h2>
-                  <p className="text-muted-foreground">{email}</p>
+                  <h2 className="text-2xl font-bold text-foreground">{currentDisplayName}</h2>
+                  <p className="text-muted-foreground">{currentEmail}</p>
                   <div className="flex items-center space-x-2 mt-2">
                     <Badge variant="outline" className="text-xs">
                       <Calendar className="w-3 h-3 mr-1" />

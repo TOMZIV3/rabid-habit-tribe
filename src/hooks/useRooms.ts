@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, withRetry, validateSession, isOnline } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 export interface Room {
@@ -114,68 +114,101 @@ export const useRooms = () => {
   };
 
   const createRoom = async (name: string) => {
+    // Check network connectivity first
+    if (!isOnline()) {
+      toast({
+        title: "No Internet Connection",
+        description: "Please check your internet connection and try again",
+        variant: "destructive"
+      });
+      return null;
+    }
+
+    // Validate session before attempting room creation
+    const sessionValid = await validateSession();
+    if (!sessionValid) {
+      toast({
+        title: "Authentication Error",
+        description: "Please log out and log back in",
+        variant: "destructive"
+      });
+      return null;
+    }
+
     try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError) {
-        console.error('User auth error:', userError);
-        throw userError;
-      }
-      if (!user) {
-        throw new Error('User not authenticated');
-      }
+      return await withRetry(async () => {
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError) {
+          console.error('User auth error:', userError);
+          throw new Error(`Authentication failed: ${userError.message}`);
+        }
+        if (!user) {
+          throw new Error('User not authenticated');
+        }
 
-      console.log('Creating room for user:', user.id);
+        console.log('Creating room for user:', user.id);
 
-      // Generate a unique invite code
-      const inviteCode = generateInviteCode();
-      console.log('Generated invite code:', inviteCode);
+        // Generate a unique invite code
+        const inviteCode = generateInviteCode();
+        console.log('Generated invite code:', inviteCode);
 
-      // Create room with explicit error handling
-      const { data: room, error: roomError } = await supabase
-        .from('rooms')
-        .insert({
-          name: name.trim(),
-          created_by: user.id,
-          invite_code: inviteCode
-        })
-        .select()
-        .single();
+        // Create room with explicit error handling
+        const { data: room, error: roomError } = await supabase
+          .from('rooms')
+          .insert({
+            name: name.trim(),
+            created_by: user.id,
+            invite_code: inviteCode
+          })
+          .select()
+          .single();
 
-      if (roomError) {
-        console.error('Room creation error:', roomError);
-        throw roomError;
-      }
+        if (roomError) {
+          console.error('Room creation error:', roomError);
+          throw new Error(`Failed to create room: ${roomError.message}`);
+        }
 
-      console.log('Room created successfully:', room);
+        console.log('Room created successfully:', room);
 
-      // Join the room as creator
-      const { error: memberError } = await supabase
-        .from('room_members')
-        .insert({
-          room_id: room.id,
-          user_id: user.id
+        // Join the room as creator
+        const { error: memberError } = await supabase
+          .from('room_members')
+          .insert({
+            room_id: room.id,
+            user_id: user.id
+          });
+
+        if (memberError) {
+          console.error('Member insertion error:', memberError);
+          throw new Error(`Failed to join room: ${memberError.message}`);
+        }
+
+        console.log('User added to room as creator');
+
+        toast({
+          title: "Room Created! 🎉",
+          description: `${name} is ready for habit tracking`
         });
 
-      if (memberError) {
-        console.error('Member insertion error:', memberError);
-        throw memberError;
-      }
-
-      console.log('User added to room as creator');
-
-      toast({
-        title: "Room Created! 🎉",
-        description: `${name} is ready for habit tracking`
+        // Refetch rooms to update state
+        await fetchRooms();
+        return room;
       });
-
-      // Refetch rooms to update state
-      await fetchRooms();
-      return room;
     } catch (error: any) {
       console.error('Error creating room:', error);
+      
+      let errorMessage = "Failed to create room";
+      if (error.message?.includes('fetch')) {
+        errorMessage = "Network error - please try again";
+      } else if (error.message?.includes('auth')) {
+        errorMessage = "Authentication error - please log in again";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Error",
-        description: error.message || "Failed to create room",
+        description: errorMessage,
         variant: "destructive"
       });
       return null;

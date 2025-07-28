@@ -26,7 +26,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
 
 const Profile = () => {
-  const { profile, loading, updateProfile } = useProfile();
+  const { profile, loading, updating, updateProfile } = useProfile();
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -71,42 +71,33 @@ const Profile = () => {
   };
 
   const handleSaveProfile = async () => {
-    if (!profile) return;
+    if (!profile || updating) return;
 
-    try {
-      let avatarUrl = profile.avatar_url;
+    let avatarUrl = profile.avatar_url;
 
-      // Upload avatar if a new file was selected
-      if (avatarFile) {
-        const fileExt = avatarFile.name.split('.').pop();
-        const fileName = `${profile.user_id}_${Date.now()}.${fileExt}`;
-        
-        // For now, we'll just show a success message
-        // TODO: Implement actual file upload to Supabase Storage
-        toast({
-          title: "Avatar upload coming soon",
-          description: "Avatar upload will be implemented with Supabase Storage",
-        });
-      }
-
-      // Update profile
-      await updateProfile({
-        display_name: displayName,
-        avatar_url: avatarUrl,
-      });
-
+    // Upload avatar if a new file was selected
+    if (avatarFile) {
+      const fileExt = avatarFile.name.split('.').pop();
+      const fileName = `${profile.user_id}_${Date.now()}.${fileExt}`;
+      
+      // For now, we'll just show a success message
+      // TODO: Implement actual file upload to Supabase Storage
       toast({
-        title: "Profile updated",
-        description: "Your profile has been successfully updated",
+        title: "Avatar upload coming soon",
+        description: "Avatar upload will be implemented with Supabase Storage",
       });
+    }
+
+    // Update profile (this now includes its own error handling and loading state)
+    await updateProfile({
+      display_name: displayName,
+      avatar_url: avatarUrl,
+    });
+
+    // Only reset editing state if update was successful
+    if (!updating) {
       setIsEditing(false);
       setAvatarFile(null);
-    } catch (error) {
-      toast({
-        title: "Error updating profile",
-        description: "Please try again",
-        variant: "destructive",
-      });
     }
   };
 
@@ -235,8 +226,12 @@ const Profile = () => {
                       placeholder="Enter your display name"
                     />
                   </div>
-                  <Button onClick={handleSaveProfile} variant="default">
-                    Save Changes
+                  <Button 
+                    onClick={handleSaveProfile} 
+                    variant="default"
+                    disabled={updating}
+                  >
+                    {updating ? "Saving..." : "Save Changes"}
                   </Button>
                 </div>
               ) : (

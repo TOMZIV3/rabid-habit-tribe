@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, withRetry, validateSession, isOnline } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 export interface Profile {
@@ -14,6 +14,7 @@ export interface Profile {
 export const useProfile = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
   const { toast } = useToast();
 
   const fetchProfile = async () => {
@@ -58,31 +59,76 @@ export const useProfile = () => {
   };
 
   const updateProfile = async (updates: Partial<Profile>) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user || !profile) return;
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('user_id', user.id)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      setProfile(data);
+    // Check network connectivity
+    if (!isOnline()) {
       toast({
-        title: "Profile Updated! ✨",
-        description: "Your changes have been saved"
-      });
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update profile",
+        title: "No Internet Connection",
+        description: "Please check your internet connection and try again",
         variant: "destructive"
       });
+      return;
+    }
+
+    // Validate session
+    const sessionValid = await validateSession();
+    if (!sessionValid) {
+      toast({
+        title: "Authentication Error",
+        description: "Please log out and log back in",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!profile) {
+      toast({
+        title: "Error",
+        description: "Profile not loaded yet",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      await withRetry(async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('User not authenticated');
+
+        const { data, error } = await supabase
+          .from('profiles')
+          .update(updates)
+          .eq('user_id', user.id)
+          .select()
+          .single();
+
+        if (error) throw new Error(`Update failed: ${error.message}`);
+
+        setProfile(data);
+        toast({
+          title: "Profile Updated! ✨",
+          description: "Your changes have been saved"
+        });
+      });
+    } catch (error: any) {
+      console.error('Error updating profile:', error);
+      
+      let errorMessage = "Failed to update profile";
+      if (error.message?.includes('fetch')) {
+        errorMessage = "Network error - please try again";
+      } else if (error.message?.includes('auth')) {
+        errorMessage = "Authentication error - please log in again";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -93,6 +139,7 @@ export const useProfile = () => {
   return {
     profile,
     loading,
+    updating,
     updateProfile,
     refetch: fetchProfile
   };

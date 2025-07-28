@@ -1,16 +1,21 @@
 import HabitCard from "@/components/HabitCard";
+import RoomSelector from "@/components/RoomSelector";
+import CreateHabitDialog from "@/components/CreateHabitDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Users2, Target, Calendar, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useHabits } from "@/hooks/useHabits";
+import { useRooms } from "@/hooks/useRooms";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 const Home = () => {
-  const { habits, loading, joinHabit, leaveHabit, completeHabit } = useHabits();
+  const { habits, loading, joinHabit, leaveHabit, completeHabit, refetch } = useHabits();
+  const { currentRoom } = useRooms();
   const { toast } = useToast();
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   useEffect(() => {
     const getCurrentUser = async () => {
@@ -33,10 +38,7 @@ const Home = () => {
   };
 
   const handleCreateHabit = () => {
-    toast({
-      title: "Feature Coming Soon",
-      description: "Habit creation dialog will be added next",
-    });
+    setShowCreateDialog(true);
   };
 
   const totalHabits = habits.length;
@@ -60,15 +62,20 @@ const Home = () => {
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Good Morning! 👋</h1>
-          <p className="text-muted-foreground mt-1">Let's build great habits together</p>
+          <p className="text-muted-foreground mt-1">
+            {currentRoom ? `Room: ${currentRoom.name}` : "Select or join a room to get started"}
+          </p>
         </div>
-        <Button onClick={handleCreateHabit} variant="hero" size="lg">
-          <Plus className="w-5 h-5 mr-2" />
-          Create Habit
-        </Button>
+        <div className="flex items-center gap-3">
+          <RoomSelector className="min-w-[200px]" />
+          <Button onClick={handleCreateHabit} variant="hero" size="lg" disabled={!currentRoom}>
+            <Plus className="w-5 h-5 mr-2" />
+            Create Habit
+          </Button>
+        </div>
       </div>
 
       {/* Stats Overview */}
@@ -108,7 +115,7 @@ const Home = () => {
                 <Users2 className="w-5 h-5 text-habit-mind" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">3</p>
+                <p className="text-2xl font-bold text-foreground">{currentRoom?.memberCount || 0}</p>
                 <p className="text-sm text-muted-foreground">Habit Buddies</p>
               </div>
             </div>
@@ -159,20 +166,33 @@ const Home = () => {
                   <Target className="w-8 h-8 text-muted-foreground" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-foreground">No habits yet</h3>
+                  <h3 className="text-lg font-semibold text-foreground">
+                    {currentRoom ? "No habits yet" : "No room selected"}
+                  </h3>
                   <p className="text-muted-foreground mt-1">
-                    Create your first habit or join a room to get started
+                    {currentRoom 
+                      ? "Create your first habit to start tracking" 
+                      : "Create or join a room to start tracking habits together"
+                    }
                   </p>
                 </div>
-                <Button onClick={handleCreateHabit} variant="hero">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Your First Habit
-                </Button>
+                {currentRoom && (
+                  <Button onClick={handleCreateHabit} variant="hero">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Your First Habit
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
         )}
       </div>
+      
+      <CreateHabitDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        onSuccess={refetch}
+      />
     </div>
   );
 };

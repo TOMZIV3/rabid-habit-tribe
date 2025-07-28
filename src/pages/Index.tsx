@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import AuthForm from "@/components/AuthForm";
+import FloatingActionButton from "@/components/FloatingActionButton";
 import Home from "./Home";
 import History from "./History";
 import Profile from "./Profile"; 
@@ -69,8 +70,13 @@ const Index = () => {
         {renderPage()}
       </main>
 
-      {/* Mobile Bottom Navigation */}
-      {isMobile && <BottomNavigation unreadNotifications={2} />}
+      {/* Mobile UI */}
+      {isMobile && (
+        <>
+          <BottomNavigation unreadNotifications={2} />
+          <FloatingActionButton />
+        </>
+      )}
     </div>
   );
 };

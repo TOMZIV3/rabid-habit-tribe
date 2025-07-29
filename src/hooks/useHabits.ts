@@ -30,8 +30,15 @@ export const useHabits = (selectedDate?: Date) => {
 
   const fetchHabits = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) {
+        console.error('Auth error in fetchHabits:', userError);
+        return;
+      }
+      if (!user) {
+        console.log('No user found in fetchHabits');
+        return;
+      }
 
       // Get user's rooms first
       const { data: roomMembers } = await supabase

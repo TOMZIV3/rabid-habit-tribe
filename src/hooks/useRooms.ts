@@ -27,8 +27,15 @@ export const useRooms = () => {
 
   const fetchRooms = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) {
+        console.error('Auth error in fetchRooms:', userError);
+        return;
+      }
+      if (!user) {
+        console.log('No user found in fetchRooms');
+        return;
+      }
 
       // Get user's rooms
       const { data: roomMemberships } = await supabase
@@ -261,7 +268,7 @@ export const useRooms = () => {
         .select('id')
         .eq('room_id', room.id)
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (existingMember) {
         toast({

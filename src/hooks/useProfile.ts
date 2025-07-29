@@ -19,14 +19,21 @@ export const useProfile = () => {
 
   const fetchProfile = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) {
+        console.error('Auth error in fetchProfile:', userError);
+        return;
+      }
+      if (!user) {
+        console.log('No user found in fetchProfile');
+        return;
+      }
 
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (error && error.code !== 'PGRST116') throw error;
       
